@@ -77,13 +77,5 @@ class Block {
     });
   }
 }
-let star = {
-  one: "1234",
-  two: "hello",
-  sss: {
-    r: "rrr",
-    s: "ssss"
-  }
-};
 
 module.exports.Block = Block; // Exposing the Block class as a module
