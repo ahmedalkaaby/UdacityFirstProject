@@ -63,17 +63,19 @@ class Blockchain {
    */
   _addBlock(block) {
     let self = this;
+    let chainHeight = self.chain.length;
     return new Promise(async (resolve, reject) => {
-      if (self.chain.length > 0) {
-        block.previousBlockHash = self.chain[self.chain.length - 1].hash;
+      if (chainHeight >= 0) {
+        block.previousBlockHash = self.chain[chainHeight - 1].hash;
         block.hash = SHA256(JSON.stringify(block)).toString();
-        block.height = self.chain.length;
+        block.height = chainHeight;
         block.time = new Date()
           .getTime()
           .toString()
           .slice(0, -3);
         self.height++;
-        resolve(self.chain.push(block));
+        self.chain.push(block);
+        resolve(block);
       } else {
         reject("ERROR!!");
       }
@@ -117,6 +119,8 @@ class Blockchain {
    */
   submitStar(address, message, signature, star) {
     let self = this;
+    const isMessageValid = bitcoinMessage.verify(message, address, signature);
+
     return new Promise(async (resolve, reject) => {
       let time = parseInt(message.split(":")[1]);
       let currentTime = parseInt(
@@ -126,12 +130,13 @@ class Blockchain {
           .slice(0, -3)
       );
       if (currentTime - time < 300000) {
-        if (!bitcoinMessage.verify(message, address, signature))
+        if (isMessageValid) {
+          let block = new BlockClass.Block({ owner: address, data: star });
+          await self._addBlock(block);
+          resolve(block);
+        } else {
           reject("ERROR!!!");
-
-        let block = new BlockClass.Block({ data: star });
-        self._addBlock(block);
-        resolve(block);
+        }
       } else {
         reject("ERROR!!!");
       }
@@ -181,18 +186,13 @@ class Blockchain {
    */
   getStarsByWalletAddress(address) {
     let self = this;
-    let test = [];
     let stars = [];
     return new Promise((resolve, reject) => {
-      for (let i = 0; i < self.chain.length; i++) {
-        test[i] = hex2ascii(self.chain[i].body); //decode all the bodies of all blocks in the chain
+      for (let block of self.chain) {
+        if (block.getBData().owner === address) {
+          stars.push(block.getBData().star);
+        }
       }
-
-      for (let i = 0; i < test.length; i++) {
-        test[i] = JSON.parse(test[i]); //converting the string into an object
-      }
-
-      stars = test.filter((f = f.address === address)); //brings all the stars that match the address given
 
       if (stars !== []) {
         resolve(stars);
